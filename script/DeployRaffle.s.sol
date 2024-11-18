@@ -7,9 +7,11 @@ import {HelperConfig} from "./HelperConfig.s.sol";
 import {AddConsumer, CreateSubscription, FundSubscription} from "./Interactions.s.sol";
 
 contract DeployRaffle is Script {
-    // Raffle public raffle;
+    Raffle public raffle;
 
     // HelperConfig public helperConfig;
+    uint256 subId;
+    address vrfCoordinatorV2_5;
 
     function run() public {
         deployContract();
@@ -23,44 +25,48 @@ contract DeployRaffle is Script {
             // This means if we don't have a subscriptionId, the next lines will create one
             CreateSubscription createSubscription = new CreateSubscription();
             // (subId, config.vrfCoordinatorV2_5)  = createSubscription.run();
-            (
-                config.subscriptionId,
-                config.vrfCoordinatorV2_5
-            ) = createSubscription.createSubscription(
-                config.vrfCoordinatorV2_5,
-                config.account
-            );
+            (subId, vrfCoordinatorV2_5) =
+                createSubscription.createSubscription(config.vrfCoordinatorV2_5, config.account);
 
             FundSubscription fundSubscription = new FundSubscription();
             //fundSubscription.run();
-            fundSubscription.fundSubscription(
-                config.vrfCoordinatorV2_5,
-                config.subscriptionId,
-                config.link,
-                config.account
+            fundSubscription.fundSubscription(vrfCoordinatorV2_5, subId, config.link, config.account);
+
+            vm.startBroadcast(config.account);
+            raffle = new Raffle(
+                subId,
+                config.gasLane,
+                config.interval,
+                config.entranceFee,
+                config.callbackGasLimit,
+                config.vrfCoordinatorV2_5
             );
+            vm.stopBroadcast();
+
+            AddConsumer addConsumer = new AddConsumer();
+            // Don't need to broadcast because we have aleady done that in Interactions file.
+            addConsumer.addConsumer(address(raffle), vrfCoordinatorV2_5, subId, config.account);
+        } else {
+            vm.startBroadcast(config.account);
+            raffle = new Raffle(
+                config.subscriptionId,
+                config.gasLane,
+                config.interval,
+                config.entranceFee,
+                config.callbackGasLimit,
+                config.vrfCoordinatorV2_5
+            );
+            vm.stopBroadcast();
+
+            FundSubscription fundSubscription = new FundSubscription();
+            fundSubscription.fundSubscription(
+                config.vrfCoordinatorV2_5, config.subscriptionId, config.link, config.account
+            );
+
+            AddConsumer addConsumer = new AddConsumer();
+            // Don't need to broadcast because we have aleady done that in Interactions file.
+            addConsumer.addConsumer(address(raffle), config.vrfCoordinatorV2_5, config.subscriptionId, config.account);
         }
-
-        vm.startBroadcast(config.account);
-        Raffle raffle = new Raffle(
-            config.subscriptionId,
-            config.gasLane,
-            config.interval,
-            config.entranceFee,
-            config.callbackGasLimit,
-            config.vrfCoordinatorV2_5
-        );
-        vm.stopBroadcast();
-
-        AddConsumer addConsumer = new AddConsumer();
-        // Don't need to broadcast because we have aleady done that in Interactions file.
-        addConsumer.addConsumer(
-            address(raffle),
-            config.vrfCoordinatorV2_5,
-            config.subscriptionId,
-            config.account
-        );
-
         return (raffle, helperConfig);
     }
 }

@@ -42,29 +42,20 @@ contract IntegrationTest is Test {
     }
 
     function testCreateSubscriptionWithoutUpdatingItInHelperConfig() public {
-        (uint256 subId, ) = createSubscription.createSubscription(
-            vrfCoordinatorV2_5,
-            account
-        );
+        (uint256 subId,) = createSubscription.createSubscription(vrfCoordinatorV2_5, account);
 
         assert(subId != subscriptionId);
     }
 
     function testFundSubscription() public {
-        fundSubscription.fundSubscription(
-            vrfCoordinatorV2_5,
-            subscriptionId,
-            link,
-            account
-        );
+        (uint256 subId,) = createSubscription.createSubscription(vrfCoordinatorV2_5, account);
+        fundSubscription.fundSubscription(vrfCoordinatorV2_5, subId, link, account);
     }
 
     function testAddConsumer() public {
-        addConsumer.addConsumer(
-            address(raffle),
-            vrfCoordinatorV2_5,
-            subscriptionId,
-            account
-        );
+        (uint256 subId,) = createSubscription.createSubscription(vrfCoordinatorV2_5, account);
+        fundSubscription.fundSubscription(vrfCoordinatorV2_5, subId, link, account);
+
+        addConsumer.addConsumer(address(raffle), vrfCoordinatorV2_5, subId, account);
     }
 }
